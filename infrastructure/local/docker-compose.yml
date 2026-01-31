@@ -1,0 +1,95 @@
+# Local Development Docker Compose
+# Start with: docker compose -f infrastructure/local/docker-compose.yml up -d
+
+services:
+  # FastAPI Application
+  app:
+    build:
+      context: ../..
+      dockerfile: infrastructure/local/Dockerfile.dev
+    container_name: collab-editor-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../src:/app/src:cached
+      - ../../tests:/app/tests:cached
+    env_file:
+      - ../../config/envs/local/.env
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - collab-network
+    restart: unless-stopped
+
+  # MongoDB Database
+  mongo:
+    image: mongo:7.0
+    container_name: collab-editor-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    env_file:
+      - ../../config/envs/local/.env.mongo
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - collab-network
+    restart: unless-stopped
+
+  # Redis Cache & Pub/Sub
+  redis:
+    image: redis:7-alpine
+    container_name: collab-editor-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - collab-network
+    restart: unless-stopped
+
+  # MongoDB Admin UI (Optional)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: collab-editor-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - collab-network
+    restart: unless-stopped
+    profiles:
+      - tools
+
+networks:
+  collab-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  mongo-config:
+  redis-data:
