@@ -4,22 +4,24 @@
 .PHONY: help up down build logs debug shell lint format test clean ps restart
 
 #------------------------------------------------------------------------------
-# Environment Configuration (calculated once)
+# Environment Configuration
 #------------------------------------------------------------------------------
 ENV ?= local
 REPLICAS ?= 2
 
+# Capture extra arguments after command (e.g., make test -v -k login)
+ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+$(eval $(ARGS):;@:)
+
 ifeq ($(ENV),prod)
     STACK_NAME := collab-editor
     DOCKERFILE := infrastructure/prod/Dockerfile
-    # Production uses docker stack commands
     CMD_UP = docker stack deploy -c infrastructure/prod/docker-stack.yml $(STACK_NAME)
     CMD_DOWN = docker stack rm $(STACK_NAME)
     CMD_BUILD = docker build -f $(DOCKERFILE) -t $(STACK_NAME):latest .
-    CMD_LOGS = docker service logs -f $(STACK_NAME)_app
+    CMD_LOGS = docker service logs -f $(STACK_NAME)_
     CMD_PS = docker stack services $(STACK_NAME)
-    CMD_RESTART = docker service update --force $(STACK_NAME)_app
-    # Use head -n 1 to handle scaled services (multiple containers)
+    CMD_RESTART = docker service update --force $(STACK_NAME)_
     CMD_SHELL = docker exec -it $$(docker ps -q -f name=$(STACK_NAME)_app | head -n 1) /bin/bash
     CMD_SHELL_MONGO = docker exec -it $$(docker ps -q -f name=$(STACK_NAME)_mongo | head -n 1) mongosh
     CMD_SHELL_REDIS = docker exec -it $$(docker ps -q -f name=$(STACK_NAME)_redis | head -n 1) redis-cli
@@ -28,7 +30,6 @@ else
     COMPOSE := docker compose -f infrastructure/local/docker-compose.yml
     COMPOSE_DEBUG := $(COMPOSE) -f infrastructure/local/docker-compose.debug.yml
     DOCKERFILE := infrastructure/local/Dockerfile.dev
-    # Local uses docker compose commands
     CMD_UP = $(COMPOSE) up -d
     CMD_DOWN = $(COMPOSE) down
     CMD_BUILD = $(COMPOSE) build
@@ -54,38 +55,43 @@ NC := \033[0m
 help: ## Show help
 	@echo "$(BLUE)Collaborative Document Editor$(NC) [ENV=$(ENV)]"
 	@echo ""
-	@echo "Usage: make [command] [ENV=prod]"
+	@echo "Usage: make [command] [args...]"
+	@echo ""
+	@echo "$(GREEN)Examples:$(NC)"
+	@echo "  make logs mongo           # logs for mongo service"
+	@echo "  make test -v -k auth      # pytest with args"
+	@echo "  make lint src/main.py     # lint specific file"
+	@echo "  make up ENV=prod          # production mode"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-12s$(NC) %s\n", $$1, $$2}'
 
 #------------------------------------------------------------------------------
 # Docker Commands
 #------------------------------------------------------------------------------
-up: ## Start services
+up: ## Start services [service]
 	@echo "$(GREEN)Starting $(ENV)...$(NC)"
-	@$(CMD_UP)
+	@$(CMD_UP) $(ARGS)
 
 down: ## Stop services
 	@echo "$(YELLOW)Stopping $(ENV)...$(NC)"
 	@$(CMD_DOWN)
 
-build: ## Build images
+build: ## Build images [service]
 	@echo "$(GREEN)Building $(ENV)...$(NC)"
+	@$(CMD_BUILD) $(ARGS)
+
+rebuild: ## Rebuild and start
 	@$(CMD_BUILD)
+	@$(CMD_UP)
 
-rebuild: build up ## Rebuild and start
-
-logs: ## View logs (follow)
-	@$(CMD_LOGS)
-
-logs-app: ## View app logs only
-	@$(CMD_LOGS)
+logs: ## View logs [service]
+	@$(CMD_LOGS) $(ARGS)
 
 ps: ## List services
 	@$(CMD_PS)
 
-restart: ## Restart services
-	@$(CMD_RESTART)
+restart: ## Restart services [service]
+	@$(CMD_RESTART) $(ARGS)
 
 shell: ## Shell into app container
 	@$(CMD_SHELL)
@@ -112,63 +118,55 @@ endif
 debug-down: ## Stop debug mode
 ifeq ($(IS_LOCAL),true)
 	@$(COMPOSE_DEBUG) down
-else
-	@echo "$(RED)Error: debug-down only available locally$(NC)"
 endif
 
 #------------------------------------------------------------------------------
 # Prod Only
 #------------------------------------------------------------------------------
-scale: ## Scale replicas (ENV=prod REPLICAS=N)
+scale: ## Scale replicas [n] (prod only)
 ifeq ($(IS_LOCAL),false)
-	@echo "$(GREEN)Scaling to $(REPLICAS) replicas...$(NC)"
-	docker service scale $(STACK_NAME)_app=$(REPLICAS)
+	@echo "$(GREEN)Scaling to $(or $(ARGS),$(REPLICAS)) replicas...$(NC)"
+	docker service scale $(STACK_NAME)_app=$(or $(ARGS),$(REPLICAS))
 else
-	@echo "$(RED)Error: scale only available in prod$(NC)"
-	@echo "$(YELLOW)Usage: make scale ENV=prod REPLICAS=3$(NC)"
+	@echo "$(RED)Error: scale only in prod$(NC)"
+	@echo "$(YELLOW)Usage: make scale 3 ENV=prod$(NC)"
 	@exit 1
 endif
 
 rollback: ## Rollback app (prod only)
 ifeq ($(IS_LOCAL),false)
-	@echo "$(YELLOW)Rolling back...$(NC)"
 	docker service rollback $(STACK_NAME)_app
 else
-	@echo "$(RED)Error: rollback only available in prod$(NC)"
+	@echo "$(RED)Error: rollback only in prod$(NC)"
 	@exit 1
 endif
 
 #------------------------------------------------------------------------------
-# Code Quality (runs locally with uv)
+# Code Quality
 #------------------------------------------------------------------------------
-lint: ## Run linter
-	@uv run ruff check src tests
+lint: ## Run linter [path] [args]
+	@uv run ruff check $(or $(ARGS),src tests)
 
-lint-fix: ## Fix lint errors
-	@uv run ruff check src tests --fix
+lint-fix: ## Fix lint errors [path]
+	@uv run ruff check $(or $(ARGS),src tests) --fix
 
-format: ## Format code
-	@uv run ruff format src tests
+format: ## Format code [path]
+	@uv run ruff format $(or $(ARGS),src tests)
 
-test: ## Run tests
-	@uv run pytest
+test: ## Run tests [path] [args]
+	@uv run pytest $(ARGS)
 
-test-cov: ## Tests with coverage
-	@uv run pytest --cov=src --cov-report=html
+test-cov: ## Tests with coverage [path]
+	@uv run pytest $(ARGS) --cov=src --cov-report=html
 
-# Run lint/test inside container (ensures matching environment)
-lint-docker: ## Run linter in container
+lint-docker: ## Lint in container
 ifeq ($(IS_LOCAL),true)
-	@$(COMPOSE) exec app uv run ruff check src tests
-else
-	@echo "$(RED)Use 'make lint' for prod CI/CD$(NC)"
+	@$(COMPOSE) exec app uv run ruff check $(or $(ARGS),src tests)
 endif
 
-test-docker: ## Run tests in container
+test-docker: ## Test in container [args]
 ifeq ($(IS_LOCAL),true)
-	@$(COMPOSE) exec app uv run pytest
-else
-	@echo "$(RED)Use 'make test' for prod CI/CD$(NC)"
+	@$(COMPOSE) exec app uv run pytest $(ARGS)
 endif
 
 #------------------------------------------------------------------------------
@@ -193,11 +191,8 @@ clean: ## Clean cache files
 
 docker-clean: ## Remove volumes & images (local only)
 ifeq ($(IS_LOCAL),true)
-	@echo "$(YELLOW)Removing local Docker resources...$(NC)"
 	@$(COMPOSE) down -v --rmi local
-	@echo "$(GREEN)Cleanup complete$(NC)"
 else
-	@echo "$(RED)Error: docker-clean is disabled for production$(NC)"
-	@echo "$(YELLOW)Use 'docker stack rm $(STACK_NAME)' manually for prod cleanup$(NC)"
+	@echo "$(RED)Error: docker-clean disabled for prod$(NC)"
 	@exit 1
 endif
