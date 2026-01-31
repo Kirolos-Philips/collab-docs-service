@@ -65,6 +65,17 @@ services:
       - collab-network
     restart: unless-stopped
 
+  # Mailpit - Local Email Testing
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: collab-editor-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - collab-network
+    restart: unless-stopped
+
   # MongoDB Admin UI (Optional)
   mongo-express:
     image: mongo-express:latest

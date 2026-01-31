@@ -11,14 +11,16 @@ authors = [{ name = "Your Name", email = "you@example.com" }]
 dependencies = [
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
-    "pydantic>=2.5.0",
+    "pydantic[email]>=2.5.0",
     "pydantic-settings>=2.1.0",
     "motor>=3.3.0",
     "redis>=5.0.0",
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.0.0,<4.1.0",
     "python-multipart>=0.0.6",
     "websockets>=12.0",
+    "aiosmtplib>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -34,10 +36,7 @@ dev = [
 ]
 
 # Production dependencies
-prod = [
-    "gunicorn>=21.2.0",
-    "uvloop>=0.19.0",
-]
+prod = ["gunicorn>=21.2.0", "uvloop>=0.19.0"]
 
 [build-system]
 requires = ["hatchling"]
@@ -54,20 +53,20 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = [
-    "E",      # pycodestyle errors
-    "W",      # pycodestyle warnings
-    "F",      # Pyflakes
-    "I",      # isort
-    "B",      # flake8-bugbear
-    "C4",     # flake8-comprehensions
-    "UP",     # pyupgrade
-    "ARG",    # flake8-unused-arguments
-    "SIM",    # flake8-simplify
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
 ]
 ignore = [
-    "E501",   # line too long (handled by formatter)
-    "B008",   # do not perform function calls in argument defaults
-    "B904",   # raise without from inside except
+    "E501", # line too long (handled by formatter)
+    "B008", # do not perform function calls in argument defaults
+    "B904", # raise without from inside except
 ]
 
 [tool.ruff.lint.isort]
@@ -86,9 +85,7 @@ testpaths = ["tests", "src"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-]
+filterwarnings = ["ignore::DeprecationWarning"]
 
 # Coverage configuration
 [tool.coverage.run]

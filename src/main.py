@@ -31,6 +31,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url="/redoc" if settings.DEBUG else None,
+        swagger_ui_parameters={"persistAuthorization": True},
         lifespan=lifespan,
     )
 
@@ -57,9 +58,10 @@ def create_app() -> FastAPI:
             "docs": "/docs" if settings.DEBUG else "Disabled in production",
         }
 
-    # Register module routers here (added incrementally per PR)
-    # from src.modules.auth.router import router as auth_router
-    # app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
+    # Register module routers
+    from src.modules.auth.router import router as auth_router
+
+    app.include_router(auth_router)
 
     return app
 

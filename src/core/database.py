@@ -80,3 +80,7 @@ def get_redis() -> Redis:
     if _redis_client is None:
         raise RuntimeError("Redis not initialized. Call init_db_connections first.")
     return _redis_client
+
+
+# Alias for cleaner imports
+get_database = get_mongo_db

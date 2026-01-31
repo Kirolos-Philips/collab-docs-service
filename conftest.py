@@ -14,10 +14,21 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from redis.asyncio import Redis
 
 from src.core.config import settings
+from src.core.database import close_db_connections, get_database, init_db_connections
 from src.main import app
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(autouse=True)
+async def initialize_db() -> AsyncGenerator[None, None]:
+    """Initialize database connections for the test session."""
+    # Use test database URL if needed, but here we just manually init
+    # because the app expects global connections to be set.
+    await init_db_connections()
+    yield
+    await close_db_connections()
+
+
+@pytest.fixture
 def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create an event loop for the test session."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
@@ -25,7 +36,7 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     loop.close()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def mongo_client() -> AsyncGenerator[AsyncIOMotorClient, None]:
     """
     MongoDB client fixture for testing.
@@ -39,13 +50,16 @@ async def mongo_client() -> AsyncGenerator[AsyncIOMotorClient, None]:
     client.close()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def mongo_db(mongo_client: AsyncIOMotorClient) -> Any:
     """MongoDB test database fixture."""
-    return mongo_client[f"{settings.MONGODB_DATABASE}_test"]
+    db_name = f"{settings.MONGODB_DATABASE}_test"
+    await mongo_client.drop_database(db_name)
+    db = mongo_client[db_name]
+    return db
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def redis_client() -> AsyncGenerator[Redis, None]:
     """
     Redis client fixture for testing.
@@ -64,7 +78,7 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
 
 
 @pytest.fixture
-async def async_client() -> AsyncGenerator[AsyncClient, None]:
+async def async_client(mongo_db) -> AsyncGenerator[AsyncClient, None]:
     """
     Async HTTP client for testing FastAPI endpoints.
 
@@ -74,8 +88,11 @@ async def async_client() -> AsyncGenerator[AsyncClient, None]:
             assert response.status_code == 200
     """
     transport = ASGITransport(app=app)
+    # Override database dependency to use the test database
+    app.dependency_overrides[get_database] = lambda: mongo_db
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture

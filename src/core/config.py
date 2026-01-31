@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = "HS256"
 
+    # SMTP (Email)
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 1025
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    EMAILS_FROM_EMAIL: str = "noreply@collab.local"
+    EMAILS_FROM_NAME: str = "Collab Editor"
+
     # CORS
     CORS_ORIGINS: Annotated[list[str], Field(default_factory=list)]
 
