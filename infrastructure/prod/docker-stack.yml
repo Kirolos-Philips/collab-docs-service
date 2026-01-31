@@ -1,0 +1,169 @@
+# Docker Swarm Stack for Production
+# Deploy with: docker stack deploy -c docker-stack.yml collab-editor
+
+version: "3.8"
+
+services:
+  # FastAPI Application
+  app:
+    image: collab-editor:latest
+    build:
+      context: ../..
+      dockerfile: infrastructure/prod/Dockerfile
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.app.rule=Host(`collab.yourdomain.com`)"
+        - "traefik.http.routers.app.entrypoints=websecure"
+        - "traefik.http.routers.app.tls.certresolver=letsencrypt"
+        - "traefik.http.services.app.loadbalancer.server.port=8000"
+        # WebSocket support
+        - "traefik.http.routers.app-ws.rule=Host(`collab.yourdomain.com`) && PathPrefix(`/ws`)"
+        - "traefik.http.routers.app-ws.entrypoints=websecure"
+        - "traefik.http.routers.app-ws.tls.certresolver=letsencrypt"
+    env_file:
+      - ../../config/envs/prod/.env
+    secrets:
+      - secret_key
+      - mongo_password
+      - redis_password
+    networks:
+      - collab-network
+      - traefik-public
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # MongoDB (Single node for simplicity - use replica set for HA)
+  mongo:
+    image: mongo:7.0
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    volumes:
+      - mongo-data:/data/db
+    env_file:
+      - ../../config/envs/prod/.env.mongo
+    secrets:
+      - mongo_root_username
+      - mongo_root_password
+    networks:
+      - collab-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --requirepass_FILE /run/secrets/redis_password
+    secrets:
+      - redis_password
+    networks:
+      - collab-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Traefik Reverse Proxy
+  traefik:
+    image: traefik:v3.0
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        # Dashboard (secured)
+        - "traefik.http.routers.dashboard.rule=Host(`traefik.yourdomain.com`)"
+        - "traefik.http.routers.dashboard.entrypoints=websecure"
+        - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.dashboard.service=api@internal"
+        - "traefik.http.routers.dashboard.middlewares=auth"
+        - "traefik.http.middlewares.auth.basicauth.users=admin:$$apr1$$..."  # Generate with htpasswd
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certs:/letsencrypt
+    configs:
+      - source: traefik_static
+        target: /etc/traefik/traefik.yml
+      - source: traefik_dynamic
+        target: /etc/traefik/dynamic.yml
+    networks:
+      - traefik-public
+      - collab-network
+
+networks:
+  collab-network:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    driver: overlay
+    attachable: true
+
+volumes:
+  mongo-data:
+  redis-data:
+  traefik-certs:
+
+configs:
+  traefik_static:
+    file: ./traefik.yml
+  traefik_dynamic:
+    file: ./configs/traefik/dynamic.yml
+
+secrets:
+  secret_key:
+    external: true
+  mongo_root_username:
+    external: true
+  mongo_root_password:
+    external: true
+  mongo_password:
+    external: true
+  redis_password:
+    external: true
