@@ -33,6 +33,7 @@ dev = [
     "debugpy>=1.8.0",
     "ruff>=0.1.0",
     "pre-commit>=3.6.0",
+    "ipython>=9.9.0",
 ]
 
 # Production dependencies
