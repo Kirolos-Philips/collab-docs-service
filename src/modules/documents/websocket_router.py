@@ -1,13 +1,16 @@
 """WebSocket router for document synchronization."""
 
+import base64
 import contextlib
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from src.core.database import get_database
 from src.core.redis_pubsub import redis_sync_manager
 from src.core.websockets import manager
 from src.modules.documents.dependencies import get_ws_authenticated_doc
-from src.modules.documents.services import process_sync_message
+from src.modules.documents.services import apply_crdt_update, process_sync_message
 
 router = APIRouter(prefix="/documents", tags=["documents_sync"])
 
@@ -17,6 +20,7 @@ async def sync_document(
     websocket: WebSocket,
     document_id: str,
     auth_data: tuple = Depends(get_ws_authenticated_doc),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """
     WebSocket endpoint for real-time document synchronization.
@@ -26,26 +30,53 @@ async def sync_document(
         # Dependency already closed the connection
         return
 
-    user, _doc = auth_data
+    user, doc = auth_data
 
     # 1. Connection Setup
     await manager.connect(document_id, websocket)
     await redis_sync_manager.subscribe(document_id)
 
+    # 2. Synchronize Initial State
+    # Send the current full binary state to the newly connected client
+    if doc.state:
+        # Encode state as base64 for JSON transport
+        initial_state_b64 = base64.b64encode(doc.state).decode("utf-8")
+        await websocket.send_json(
+            {
+                "type": "sync_state",
+                "state": initial_state_b64,
+                "version": 0,  # Future-proofing
+            }
+        )
+
     try:
         while True:
-            # Receive data from client
-            data = await websocket.receive_json()
+            # Receive message from client
+            message = await websocket.receive_json()
+            msg_type = message.get("type")
 
-            # Process logic (Decoupled from pub/sub)
-            processed_data = await process_sync_message(user, data)
+            if msg_type == "update":
+                # Handle Yjs binary update
+                update_b64 = message.get("update")
+                if update_b64:
+                    try:
+                        # Decode base64 to binary
+                        binary_update = base64.b64decode(update_b64)
 
-            # Publish to Redis for other server instances
-            await redis_sync_manager.publish(document_id, processed_data)
+                        # Apply to database (via service)
+                        await apply_crdt_update(db, document_id, binary_update)
+                    except Exception as e:
+                        print(f"Error processing CRDT update: {e}")
+                        continue
+
+                # Process additional logic (enrichment, etc.)
+                processed_data = await process_sync_message(user, message)
+
+                # Publish to Redis for other replicas
+                await redis_sync_manager.publish(document_id, processed_data)
 
     except WebSocketDisconnect:
         manager.disconnect(document_id, websocket)
-        # Only unsubscribe if no more local clients are listening to this doc
         if document_id not in manager.active_connections:
             await redis_sync_manager.unsubscribe(document_id)
     except Exception:

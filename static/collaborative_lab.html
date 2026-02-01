@@ -247,7 +247,16 @@
         <div id="log"></div>
     </div>
 
-    <script>
+    <script type="importmap">
+        {
+            "imports": {
+                "yjs": "https://esm.sh/yjs@13.6.10"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as Y from 'yjs';
+
         let ws = null;
         let activeToken = "";
         const log = document.getElementById('log');
@@ -255,8 +264,50 @@
         const connectBtn = document.getElementById('connectBtn');
         const sendBtn = document.getElementById('sendBtn');
         const authBtn = document.getElementById('authBtn');
+        const editor = document.getElementById('msgInput');
 
-        function setAuthMode(mode) {
+        // Yjs State
+        const ydoc = new Y.Doc();
+        const ytext = ydoc.getText('content');
+
+        // Observe changes to ytext and send them as binary updates
+        ydoc.on('update', (update, origin) => {
+            if (origin !== 'socket' && ws && ws.readyState === WebSocket.OPEN) {
+                const updateB64 = btoa(String.fromCharCode(...update));
+                const payload = { type: 'update', update: updateB64 };
+                ws.send(JSON.stringify(payload));
+                appendLog(`Sent CRDT Update (${update.length} bytes)`, 'sent');
+            }
+        });
+
+        // Sync editor with Yjs (Simple text sync)
+        ytext.observe(event => {
+            const currentContent = editor.value;
+            const newContent = ytext.toString();
+            if (currentContent !== newContent) {
+                editor.value = newContent;
+            }
+        });
+
+        editor.addEventListener('input', () => {
+            const currentContent = ytext.toString();
+            const newContent = editor.value;
+
+            // Very basic diffing to apply changes to Y.Text
+            if (newContent.length > currentContent.length) {
+                // Insert (crude approximation)
+                ytext.insert(0, newContent);
+                ytext.delete(newContent.length, currentContent.length);
+            } else {
+                // Delete/Replace (crude)
+                ytext.delete(0, currentContent.length);
+                ytext.insert(0, newContent);
+            }
+            // Note: For real apps, use a proper editor binding like y-monaco or y-quill.
+            // Here we just want to verify the network/sync logic.
+        });
+
+        window.setAuthMode = function (mode) {
             document.getElementById('loginFields').style.display = mode === 'login' ? 'grid' : 'none';
             document.getElementById('tokenField').style.display = mode === 'token' ? 'flex' : 'none';
 
@@ -265,7 +316,7 @@
             btns[1].className = mode === 'token' ? 'btn btn-primary' : 'btn btn-outline';
         }
 
-        async function authenticate() {
+        window.authenticate = async function () {
             const mode = document.getElementById('tokenField').style.display === 'none' ? 'login' : 'token';
 
             if (mode === 'token') {
@@ -305,7 +356,7 @@
             log.scrollTop = log.scrollHeight;
         }
 
-        function toggleConnection() {
+        window.toggleConnection = function () {
             if (ws) { ws.close(); return; }
 
             const docId = document.getElementById('docId').value.trim();
@@ -328,7 +379,19 @@
             };
 
             ws.onmessage = (event) => {
-                appendLog(event.data, 'received');
+                const message = JSON.parse(event.data);
+
+                if (message.type === 'sync_state') {
+                    const state = Uint8Array.from(atob(message.state), c => c.charCodeAt(0));
+                    Y.applyUpdate(ydoc, state, 'socket');
+                    appendLog('Initial State Synced', 'received');
+                } else if (message.type === 'update') {
+                    const update = Uint8Array.from(atob(message.update), c => c.charCodeAt(0));
+                    Y.applyUpdate(ydoc, update, 'socket');
+                    appendLog(`Received Update (${update.length} bytes)`, 'received');
+                } else {
+                    appendLog(`Message: ${event.data}`, 'received');
+                }
             };
 
             ws.onclose = (e) => {
@@ -343,18 +406,12 @@
             ws.onerror = () => appendLog('Stream Error', 'error');
         }
 
-        function sendMsg() {
-            const input = document.getElementById('msgInput');
-            const content = input.value.trim();
-            if (!content || !ws) return;
-
-            const payload = { type: "edit", data: { content: content } };
-            ws.send(JSON.stringify(payload));
-            appendLog(`Sent: ${JSON.stringify(payload)}`, 'sent');
-            input.value = '';
+        window.sendMsg = function () {
+            // Deprecated in favor of automatic Yjs sync
+            appendLog('Broadcasting text directly is deprecated. Use the editor to sync via CRDT.', 'system');
         }
 
-        function handleKey(e) { if (e.key === 'Enter') sendMsg(); }
+        window.handleKey = function (e) { if (e.key === 'Enter') sendMsg(); }
     </script>
 </body>
 

@@ -7,8 +7,12 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.modules.auth.models import UserInDB
 from src.modules.auth.services import get_user_by_email
+from src.modules.documents.crdt import CRDTDocumentManager
 from src.modules.documents.models import Collaborator, DocumentInDB
-from src.modules.documents.schemas import DocumentCreate, DocumentUpdate
+from src.modules.documents.schemas import (
+    DocumentCreate,
+    DocumentUpdate,
+)
 
 DOCUMENTS_COLLECTION = "documents"
 
@@ -18,9 +22,13 @@ async def create_document(
 ) -> DocumentInDB:
     """Create a new document."""
     now = datetime.utcnow()
+    # Initialize CRDT state
+    crdt = CRDTDocumentManager.from_text(doc_data.content or "")
+
     doc = DocumentInDB(
         title=doc_data.title,
         content=doc_data.content or "",
+        state=crdt.get_state(),
         owner_id=owner_id,
         collaborators=[],
         created_at=now,
@@ -115,9 +123,6 @@ async def add_collaborator(
         return doc  # Owner is already implied
 
     # Update or add collaborator
-    # Using $set with arrayFilters if update, or $push if new?
-    # Simplest: check if exists in list and update, else push.
-
     existing = next((c for c in doc.collaborators if c.user_id == user_id), None)
 
     if existing:
@@ -141,7 +146,6 @@ async def add_collaborator(
 async def process_sync_message(user: UserInDB, data: dict) -> dict:
     """
     Process and enrich synchronization messages.
-    In the future, this can include CRDT/OT logic, validation, etc.
     """
     # Enrich message with user info
     data["user_id"] = str(user.id)
@@ -149,3 +153,44 @@ async def process_sync_message(user: UserInDB, data: dict) -> dict:
     data["timestamp"] = datetime.utcnow().isoformat()
 
     return data
+
+
+async def apply_crdt_update(
+    db: AsyncIOMotorDatabase, doc_id: str, binary_update: bytes
+) -> DocumentInDB | None:
+    """
+    Merge a binary CRDT update into the document state and persist it.
+    """
+    if not ObjectId.is_valid(doc_id):
+        return None
+
+    doc_data = await db[DOCUMENTS_COLLECTION].find_one({"_id": ObjectId(doc_id)})
+    if not doc_data:
+        return None
+
+    doc = DocumentInDB.from_mongo(doc_data)
+
+    # Initialize manager with current state
+    manager = CRDTDocumentManager(doc.state)
+
+    # Apply the new update
+    manager.apply_update(binary_update)
+
+    # Get new state and content
+    new_state = manager.get_state()
+    new_content = manager.get_content()
+
+    # Persistent update
+    updated_doc = await db[DOCUMENTS_COLLECTION].find_one_and_update(
+        {"_id": ObjectId(doc_id)},
+        {
+            "$set": {
+                "state": new_state,
+                "content": new_content,
+                "updated_at": datetime.utcnow(),
+            }
+        },
+        return_document=True,
+    )
+
+    return DocumentInDB.from_mongo(updated_doc) if updated_doc else None
