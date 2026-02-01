@@ -1,11 +1,13 @@
 """Auth dependencies for Documents Module."""
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, WebSocket, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.core.database import get_database
 from src.modules.auth.dependencies import get_current_active_user
 from src.modules.auth.models import UserInDB
+from src.modules.auth.security import decode_access_token
+from src.modules.auth.services import get_user_by_id
 from src.modules.documents.models import DocumentInDB
 from src.modules.documents.services import get_document_by_id
 
@@ -67,3 +69,40 @@ async def get_document_for_owner(
             detail="Only the owner can perform this action",
         )
     return doc
+
+
+async def get_ws_authenticated_doc(
+    websocket: WebSocket,
+    document_id: str,
+    token: str | None = None,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+) -> tuple[UserInDB, DocumentInDB] | None:
+    """Validate WebSocket token and document access. Closes connection on failure."""
+    if not token:
+        await websocket.close(code=4001, reason="Authentication token missing")
+        return None
+
+    user_id = decode_access_token(token)
+    if not user_id:
+        await websocket.close(code=4002, reason="Invalid token")
+        return None
+
+    user = await get_user_by_id(db, user_id)
+    if not user or not user.is_active:
+        await websocket.close(code=4003, reason="User unauthorized or inactive")
+        return None
+
+    doc = await get_document_by_id(db, document_id)
+    if not doc:
+        await websocket.close(code=4004, reason="Document not found")
+        return None
+
+    user_id_str = str(user.id)
+    is_owner = doc.owner_id == user_id_str
+    is_collaborator = any(c.user_id == user_id_str for c in doc.collaborators)
+
+    if not (is_owner or is_collaborator):
+        await websocket.close(code=4005, reason="Document access denied")
+        return None
+
+    return user, doc

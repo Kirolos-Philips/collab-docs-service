@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.modules.auth.models import PyObjectId
+from src.core.models import PyObjectId
 
 
 class Collaborator(BaseModel):

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.core.config import settings
 from src.core.database import close_db_connections, init_db_connections
@@ -18,8 +19,18 @@ async def lifespan(_app: FastAPI):
     """Manage application lifecycle - startup and shutdown events."""
     # Startup
     await init_db_connections()
+
+    # Initialize Redis sync for WebSockets
+    from src.core.redis_pubsub import redis_sync_manager
+
+    await redis_sync_manager.connect()
+    await redis_sync_manager.start_listening()
+
     yield
     # Shutdown
+    from src.core.redis_pubsub import redis_sync_manager
+
+    await redis_sync_manager.stop()
     await close_db_connections()
 
 
@@ -58,12 +69,20 @@ def create_app() -> FastAPI:
             "docs": "/docs" if settings.DEBUG else "Disabled in production",
         }
 
+    # Mount static files
+    from pathlib import Path
+
+    static_path = Path(__file__).resolve().parent.parent / "static"
+    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
     # Register module routers
     from src.modules.auth.router import router as auth_router
     from src.modules.documents.router import router as documents_router
+    from src.modules.documents.websocket_router import router as documents_ws_router
 
     app.include_router(auth_router)
     app.include_router(documents_router)
+    app.include_router(documents_ws_router)
 
     return app
 

@@ -5,6 +5,7 @@ from datetime import datetime
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from src.modules.auth.models import UserInDB
 from src.modules.auth.services import get_user_by_email
 from src.modules.documents.models import Collaborator, DocumentInDB
 from src.modules.documents.schemas import DocumentCreate, DocumentUpdate
@@ -135,3 +136,16 @@ async def add_collaborator(
         )
 
     return await get_document_by_id(db, doc_id)
+
+
+async def process_sync_message(user: UserInDB, data: dict) -> dict:
+    """
+    Process and enrich synchronization messages.
+    In the future, this can include CRDT/OT logic, validation, etc.
+    """
+    # Enrich message with user info
+    data["user_id"] = str(user.id)
+    data["username"] = user.username
+    data["timestamp"] = datetime.utcnow().isoformat()
+
+    return data

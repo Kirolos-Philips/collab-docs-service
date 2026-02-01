@@ -1,22 +1,11 @@
 """User model for MongoDB."""
 
 from datetime import datetime
-from typing import Annotated
 
 from bson import ObjectId
-from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-
-def validate_object_id(v: str | ObjectId) -> str:
-    """Validate and convert ObjectId to string."""
-    if isinstance(v, ObjectId):
-        return str(v)
-    if isinstance(v, str) and ObjectId.is_valid(v):
-        return v
-    raise ValueError("Invalid ObjectId")
-
-
-PyObjectId = Annotated[str, BeforeValidator(validate_object_id)]
+from src.core.models import PyObjectId
 
 
 class UserInDB(BaseModel):
