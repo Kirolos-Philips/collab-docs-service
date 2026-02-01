@@ -40,6 +40,7 @@ COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
 COPY --chown=appuser:appgroup src/ ./src/
+COPY --chown=appuser:appgroup static/ ./static/
 
 # Set ownership
 RUN chown -R appuser:appgroup /app

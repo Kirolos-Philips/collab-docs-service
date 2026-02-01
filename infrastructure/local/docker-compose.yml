@@ -13,6 +13,7 @@ services:
     volumes:
       - ../../src:/app/src:cached
       - ../../tests:/app/tests:cached
+      - ../../static:/app/static:cached
     env_file:
       - ../../config/envs/local/.env
     environment:

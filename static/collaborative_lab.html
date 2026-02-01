@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Lab | Sync Debugger</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #10b981;
+            --error: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 700px;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            margin-bottom: 24px;
+            text-align: center;
+            color: var(--primary);
+            font-weight: 800;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        input {
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .auth-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #cbd5e1;
+        }
+
+        .btn:hover {
+            filter: brightness(0.95);
+        }
+
+        .btn:disabled {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        #log {
+            margin-top: 20px;
+            border-radius: 12px;
+            height: 350px;
+            overflow-y: auto;
+            padding: 15px;
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .log-entry {
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .sent {
+            color: #818cf8;
+        }
+
+        .received {
+            color: #34d399;
+        }
+
+        .system {
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .error {
+            color: #f87171;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        .status-disconnected {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .status-connected {
+            background: #dcfce7;
+            color: #15803d;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Collaborative Lab <span id="status" class="status-badge status-disconnected">OFFLINE</span></h1>
+
+        <!-- 1. Authentication -->
+        <div class="section">
+            <div class="section-title">1. Authentication</div>
+            <div id="authMethod" class="auth-toggle">
+                <button class="btn btn-primary" onclick="setAuthMode('login')">Login (User/Pass)</button>
+                <button class="btn btn-outline" onclick="setAuthMode('token')">Direct Token</button>
+            </div>
+
+            <div id="loginFields" class="input-row">
+                <div class="input-group">
+                    <label>Email / Username</label>
+                    <input type="text" id="username" placeholder="kero@example.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="••••••••">
+                </div>
+            </div>
+
+            <div id="tokenField" class="input-group" style="display: none;">
+                <label>Access Token</label>
+                <input type="text" id="token" placeholder="Paste JWT here...">
+            </div>
+
+            <button id="authBtn" class="btn btn-success" style="width: 100%; margin-top: 15px;"
+                onclick="authenticate()">Prepare Credentials</button>
+        </div>
+
+        <!-- 2. Connection -->
+        <div class="section">
+            <div class="section-title">2. Lab Session</div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label>Document ID</label>
+                    <input type="text" id="docId" placeholder="65b7123...">
+                </div>
+                <div class="input-group" style="justify-content: flex-end;">
+                    <button id="connectBtn" class="btn btn-primary" onclick="toggleConnection()" disabled>Connect to
+                        Sync</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Interaction -->
+        <div class="section">
+            <div class="section-title">3. Live Updates</div>
+            <div class="input-row" style="grid-template-columns: 1fr auto;">
+                <input type="text" id="msgInput" placeholder="Type a message to broadcast..."
+                    onkeypress="handleKey(event)">
+                <button id="sendBtn" class="btn btn-primary" onclick="sendMsg()" disabled>Broadcast</button>
+            </div>
+        </div>
+
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let activeToken = "";
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const authBtn = document.getElementById('authBtn');
+
+        function setAuthMode(mode) {
+            document.getElementById('loginFields').style.display = mode === 'login' ? 'grid' : 'none';
+            document.getElementById('tokenField').style.display = mode === 'token' ? 'flex' : 'none';
+
+            const btns = document.querySelectorAll('#authMethod button');
+            btns[0].className = mode === 'login' ? 'btn btn-primary' : 'btn btn-outline';
+            btns[1].className = mode === 'token' ? 'btn btn-primary' : 'btn btn-outline';
+        }
+
+        async function authenticate() {
+            const mode = document.getElementById('tokenField').style.display === 'none' ? 'login' : 'token';
+
+            if (mode === 'token') {
+                activeToken = document.getElementById('token').value.trim();
+            } else {
+                const u = document.getElementById('username').value;
+                const p = document.getElementById('password').value;
+
+                try {
+                    const res = await fetch('/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ username: u, password: p })
+                    });
+
+                    if (!res.ok) throw new Error('Login failed');
+                    const data = await res.json();
+                    activeToken = data.access_token;
+                    appendLog('Authenticated successfully via API', 'system');
+                } catch (e) {
+                    appendLog('Auth Error: ' + e.message, 'error');
+                    return;
+                }
+            }
+
+            if (activeToken) {
+                appendLog('Token Ready. You can now connect.', 'system');
+                connectBtn.disabled = false;
+            }
+        }
+
+        function appendLog(text, className) {
+            const el = document.createElement('div');
+            el.className = 'log-entry ' + className;
+            el.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            log.appendChild(el);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function toggleConnection() {
+            if (ws) { ws.close(); return; }
+
+            const docId = document.getElementById('docId').value.trim();
+            if (!docId || !activeToken) {
+                alert('Missing Document ID or Token');
+                return;
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const url = `${protocol}//${window.location.host}/documents/${docId}/sync?token=${activeToken}`;
+
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                status.textContent = 'CONNECTED';
+                status.className = 'status-badge status-connected';
+                connectBtn.textContent = 'Disconnect';
+                sendBtn.disabled = false;
+                appendLog('WebSocket Stream Open', 'system');
+            };
+
+            ws.onmessage = (event) => {
+                appendLog(event.data, 'received');
+            };
+
+            ws.onclose = (e) => {
+                status.textContent = 'OFFLINE';
+                status.className = 'status-badge status-disconnected';
+                connectBtn.textContent = 'Connect to Sync';
+                sendBtn.disabled = true;
+                appendLog(`Closed: ${e.reason || 'No reason'}`, 'error');
+                ws = null;
+            };
+
+            ws.onerror = () => appendLog('Stream Error', 'error');
+        }
+
+        function sendMsg() {
+            const input = document.getElementById('msgInput');
+            const content = input.value.trim();
+            if (!content || !ws) return;
+
+            const payload = { type: "edit", data: { content: content } };
+            ws.send(JSON.stringify(payload));
+            appendLog(`Sent: ${JSON.stringify(payload)}`, 'sent');
+            input.value = '';
+        }
+
+        function handleKey(e) { if (e.key === 'Enter') sendMsg(); }
+    </script>
+</body>
+
+</html>
