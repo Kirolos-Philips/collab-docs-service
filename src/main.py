@@ -60,8 +60,10 @@ def create_app() -> FastAPI:
 
     # Register module routers
     from src.modules.auth.router import router as auth_router
+    from src.modules.documents.router import router as documents_router
 
     app.include_router(auth_router)
+    app.include_router(documents_router)
 
     return app
 
