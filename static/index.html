@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync | Welcome</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="auth-container card">
+        <h1 style="text-align: center; margin-bottom: 8px; color: var(--primary); font-weight: 800;">Sync</h1>
+        <p style="text-align: center; color: var(--text-muted); margin-bottom: 32px;" id="auth-subtitle">Collaborate in
+            real-time.</p>
+
+        <div id="login-form">
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="login-email" placeholder="you@example.com">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="login-password" placeholder="••••••••">
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" id="login-btn">Sign In</button>
+            <p style="text-align: center; margin-top: 20px; font-size: 0.9rem;">
+                Don't have an account? <a href="#" id="show-register"
+                    style="color: var(--primary); font-weight: 600; text-decoration: none;">Create one</a>
+            </p>
+        </div>
+
+        <div id="register-form" style="display: none;">
+            <div class="input-group">
+                <label>Username</label>
+                <input type="text" id="reg-username" placeholder="johndoe">
+            </div>
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="reg-email" placeholder="you@example.com">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="reg-password" placeholder="••••••••">
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" id="register-btn">Create Account</button>
+            <p style="text-align: center; margin-top: 20px; font-size: 0.9rem;">
+                Already have an account? <a href="#" id="show-login"
+                    style="color: var(--primary); font-weight: 600; text-decoration: none;">Sign in</a>
+            </p>
+        </div>
+
+        <div id="verify-form" style="display: none;">
+            <p style="text-align: center; color: var(--text-muted); margin-bottom: 24px;">Enter the 6-digit code sent to
+                your email.</p>
+            <div class="input-group">
+                <label>Verification Code</label>
+                <input type="text" id="verify-otp" placeholder="123456" maxlength="6"
+                    style="text-align: center; letter-spacing: 0.5em; font-weight: 800;">
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" id="verify-btn">Verify & Sign In</button>
+        </div>
+
+        <div id="message"
+            style="margin-top: 20px; padding: 12px; border-radius: 8px; font-size: 0.9rem; display: none; text-align: center;">
+        </div>
+    </div>
+
+    <script type="module" src="/static/js/auth.js"></script>
+</body>
+
+</html>

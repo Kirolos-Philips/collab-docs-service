@@ -12,6 +12,9 @@ class CollaboratorBase(BaseModel):
 
     user_id: str
     role: str
+    email: str | None = None
+    username: str | None = None
+    avatar_url: str | None = None
 
 
 class DocumentBase(BaseModel):

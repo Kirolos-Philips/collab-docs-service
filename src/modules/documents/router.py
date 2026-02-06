@@ -22,7 +22,9 @@ from src.modules.documents.services import (
     add_collaborator,
     create_document,
     delete_document,
+    enrich_collaborators,
     list_user_documents,
+    remove_collaborator,
     update_document,
 )
 
@@ -52,10 +54,14 @@ async def list_documents(
 
 @router.get("/{document_id}", response_model=DocumentResponse)
 async def get_document_details(
+    db: AsyncIOMotorDatabase = Depends(get_database),
     doc: DocumentInDB = Depends(get_document_for_access),
 ):
     """Get document details."""
-    return DocumentResponse(**doc.model_dump())
+    enriched_collabs = await enrich_collaborators(db, doc)
+    res = DocumentResponse(**doc.model_dump())
+    res.collaborators = enriched_collabs
+    return res
 
 
 @router.patch("/{document_id}", response_model=DocumentResponse)
@@ -106,4 +112,28 @@ async def manage_collaborators(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User not found or document error",
         )
-    return DocumentResponse(**updated_doc.model_dump())
+    res = DocumentResponse(**updated_doc.model_dump())
+    res.collaborators = await enrich_collaborators(db, updated_doc)
+    return res
+
+
+@router.delete(
+    "/{document_id}/collaborators/{user_id}", response_model=DocumentResponse
+)
+async def remove_document_collaborator(
+    document_id: str,
+    user_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    _doc: DocumentInDB = Depends(get_document_for_owner),
+):
+    """Remove a collaborator (Owner only)."""
+    updated_doc = await remove_collaborator(db, document_id, user_id)
+    if not updated_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document or collaborator not found",
+        )
+    enriched_collabs = await enrich_collaborators(db, updated_doc)
+    res = DocumentResponse(**updated_doc.model_dump())
+    res.collaborators = enriched_collabs
+    return res

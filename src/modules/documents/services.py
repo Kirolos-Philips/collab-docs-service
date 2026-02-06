@@ -10,6 +10,7 @@ from src.modules.auth.services import get_user_by_email
 from src.modules.documents.crdt import CRDTDocumentManager
 from src.modules.documents.models import Collaborator, DocumentInDB
 from src.modules.documents.schemas import (
+    CollaboratorBase,
     DocumentCreate,
     DocumentUpdate,
 )
@@ -143,6 +144,52 @@ async def add_collaborator(
     return await get_document_by_id(db, doc_id)
 
 
+async def remove_collaborator(
+    db: AsyncIOMotorDatabase, doc_id: str, user_id: str
+) -> DocumentInDB | None:
+    """Remove a collaborator from a document."""
+    if not ObjectId.is_valid(doc_id):
+        return None
+
+    await db[DOCUMENTS_COLLECTION].update_one(
+        {"_id": ObjectId(doc_id)},
+        {"$pull": {"collaborators": {"user_id": user_id}}},
+    )
+
+    return await get_document_by_id(db, doc_id)
+
+
+async def enrich_collaborators(
+    db: AsyncIOMotorDatabase, doc: DocumentInDB
+) -> list[CollaboratorBase]:
+    """Fetch user details for each collaborator in bulk to avoid N+1 proplem."""
+    from src.modules.auth.services import get_users_by_ids
+
+    user_ids = [c.user_id for c in doc.collaborators]
+    if not user_ids:
+        return []
+
+    users = await get_users_by_ids(db, user_ids)
+    user_map = {str(u.id): u for u in users}
+
+    enriched = []
+    for collab in doc.collaborators:
+        user = user_map.get(collab.user_id)
+        if user:
+            enriched.append(
+                CollaboratorBase(
+                    user_id=collab.user_id,
+                    role=collab.role,
+                    email=user.email,
+                    username=user.username,
+                    avatar_url=user.avatar_url,
+                )
+            )
+        else:
+            enriched.append(CollaboratorBase(user_id=collab.user_id, role=collab.role))
+    return enriched
+
+
 async def process_sync_message(user: UserInDB, data: dict) -> dict:
     """
     Process and enrich synchronization messages.
@@ -164,6 +211,9 @@ async def apply_crdt_update(
     if not ObjectId.is_valid(doc_id):
         return None
 
+    # Use find_one_and_update to simulate a row-level lock/atomic operation if possible,
+    # or just fetch and update. Since multiple workers might hit this, we should be careful.
+    # For now, we'll use a fetch-merge-save approach.
     doc_data = await db[DOCUMENTS_COLLECTION].find_one({"_id": ObjectId(doc_id)})
     if not doc_data:
         return None
