@@ -1,5 +1,6 @@
 """Auth services - business logic for user management."""
 
+import random
 from datetime import datetime, timedelta
 
 from bson import ObjectId
@@ -27,6 +28,20 @@ async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> UserInDB | N
         return None
     doc = await db[USERS_COLLECTION].find_one({"_id": ObjectId(user_id)})
     return UserInDB.from_mongo(doc) if doc else None
+
+
+async def get_users_by_ids(
+    db: AsyncIOMotorDatabase, user_ids: list[str]
+) -> list[UserInDB]:
+    """Get multiple users by their IDs."""
+    valid_ids = [ObjectId(uid) for uid in user_ids if ObjectId.is_valid(uid)]
+
+    if not valid_ids:
+        return []
+
+    cursor = db[USERS_COLLECTION].find({"_id": {"$in": valid_ids}})
+    docs = await cursor.to_list(length=len(valid_ids))
+    return [UserInDB.from_mongo(doc) for doc in docs]
 
 
 async def get_user_by_username(
@@ -90,12 +105,18 @@ async def verify_email(db: AsyncIOMotorDatabase, email: str, otp: str) -> bool:
         return False
 
     # Success: create real user and delete session data
+    colors = ["#2563eb", "#10b981", "#ef4444", "#f59e0b", "#8b5cf6", "#ec4899"]
+    user_color = random.choice(colors)
+    avatar_url = f"https://ui-avatars.com/api/?name={session.username}&background={user_color.replace('#', '')}&color=fff"
+
     user = UserInDB(
         email=session.email,
         username=session.username,
         hashed_password=session.hashed_password,
         is_active=True,
         is_verified=True,
+        avatar_url=avatar_url,
+        color=user_color,
         created_at=now,
         updated_at=now,
     )

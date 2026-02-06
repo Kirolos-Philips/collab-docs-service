@@ -20,6 +20,12 @@ class UserLogin(BaseModel):
     password: str
 
 
+class UserUpdate(BaseModel):
+    """Schema for partial user profile update."""
+
+    username: str | None = Field(None, min_length=3, max_length=50)
+
+
 class UserResponse(BaseModel):
     """Schema for user response (no sensitive data)."""
 
@@ -29,6 +35,7 @@ class UserResponse(BaseModel):
     is_active: bool
     is_verified: bool
     created_at: datetime
+    avatar_url: str | None = None
 
 
 class Token(BaseModel):

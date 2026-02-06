@@ -20,6 +20,12 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore",
     )
+    # static files
+    STATIC_URL: str = "/static"
+    STATIC_ROOT: str = "static"
+
+    MEDIA_URL: str = "/media"
+    MEDIA_ROOT: str = "media"
 
     # Application
     APP_NAME: str = "collab-editor"
@@ -35,7 +41,7 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = "change-me-in-production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 24 * 60 * 7
     ALGORITHM: str = "HS256"
 
     # SMTP (Email)
