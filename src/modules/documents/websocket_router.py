@@ -75,6 +75,14 @@ async def sync_document(
                 # Publish to Redis for other replicas
                 await redis_sync_manager.publish(document_id, processed_data)
 
+            elif msg_type == "presence":
+                # Handle presence logic (Position, status, etc.)
+                message["user_id"] = str(user.id)
+                message["username"] = user.username
+                message["avatar_url"] = user.avatar_url
+                message["color"] = user.color
+                await redis_sync_manager.publish(document_id, message)
+
     except WebSocketDisconnect:
         manager.disconnect(document_id, websocket)
         if document_id not in manager.active_connections:
