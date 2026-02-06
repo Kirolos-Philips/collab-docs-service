@@ -22,6 +22,7 @@ class DocumentInDB(BaseModel):
     id: PyObjectId | None = Field(default=None, alias="_id")
     title: str
     content: str = ""
+    state: bytes | None = None  # Binary CRDT state
     owner_id: str
     collaborators: list[Collaborator] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)

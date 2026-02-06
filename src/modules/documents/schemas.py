@@ -1,49 +1,68 @@
-"""Pydantic schemas for documents module."""
+"""Document schemas - request and response models."""
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from src.core.models import PyObjectId
 
 
 class CollaboratorBase(BaseModel):
-    """Base schema for collaborator."""
+    """Base schema for collaborator info."""
 
     user_id: str
     role: str
 
 
 class DocumentBase(BaseModel):
-    """Base schema for document."""
+    """Base schema for document properties."""
 
-    title: str = Field(..., min_length=1, max_length=255)
-    content: str | None = ""
+    title: str
+    content: str = ""
 
 
 class DocumentCreate(DocumentBase):
-    """Schema for document creation."""
+    """Schema for creating a new document."""
 
     pass
 
 
 class DocumentUpdate(BaseModel):
-    """Schema for document update."""
+    """Schema for updating a document."""
 
-    title: str | None = Field(None, min_length=1, max_length=255)
+    title: str | None = None
     content: str | None = None
 
 
 class DocumentResponse(DocumentBase):
     """Schema for document response."""
 
-    id: str
+    id: str = Field(alias="_id")
     owner_id: str
-    collaborators: list[CollaboratorBase]
+    collaborators: list[CollaboratorBase] = []
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "id": "60b8d545f1d2a12345678901",
+                "title": "My Document",
+                "content": "Hello World",
+                "owner_id": "60b8d545f1d2a12345678902",
+                "collaborators": [
+                    {"user_id": "60b8d545f1d2a12345678903", "role": "editor"}
+                ],
+                "created_at": "2024-05-20T10:00:00",
+                "updated_at": "2024-05-21T10:00:00",
+            }
+        },
+    )
 
 
 class CollaboratorUpdate(BaseModel):
     """Schema for adding/updating a collaborator."""
 
     email: str
-    role: str = Field("viewer", pattern="^(viewer|editor)$")
+    role: str
