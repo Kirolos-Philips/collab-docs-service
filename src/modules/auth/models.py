@@ -19,6 +19,8 @@ class UserInDB(BaseModel):
     hashed_password: str
     is_active: bool = True
     is_verified: bool = False
+    avatar_url: str | None = None
+    color: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

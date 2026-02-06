@@ -87,3 +87,6 @@ uv.lock
 
 # Docker
 *.log
+
+# Media files
+media/

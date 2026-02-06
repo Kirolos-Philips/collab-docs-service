@@ -72,8 +72,14 @@ def create_app() -> FastAPI:
     # Mount static files
     from pathlib import Path
 
-    static_path = Path(__file__).resolve().parent.parent / "static"
-    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+    root_path = Path(__file__).resolve().parent.parent
+    static_path = root_path / settings.STATIC_ROOT
+    app.mount(
+        settings.STATIC_URL, StaticFiles(directory=str(static_path)), name="static"
+    )
+
+    media_path = root_path / settings.MEDIA_ROOT
+    app.mount(settings.MEDIA_URL, StaticFiles(directory=str(media_path)), name="media")
 
     # Register module routers
     from src.modules.auth.router import router as auth_router

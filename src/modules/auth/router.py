@@ -1,6 +1,6 @@
 """Auth router - API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordRequestForm
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -13,10 +13,12 @@ from src.modules.auth.schemas import (
     Token,
     UserCreate,
     UserResponse,
+    UserUpdate,
     VerifyEmailRequest,
 )
 from src.modules.auth.security import create_access_token
 from src.modules.auth.services import (
+    USERS_COLLECTION,
     authenticate_user,
     get_user_by_email,
     get_user_by_username,
@@ -97,6 +99,87 @@ async def get_me(
 ) -> UserResponse:
     """Get current authenticated user."""
     return UserResponse(**current_user.model_dump())
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    user_update: UserUpdate,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserInDB = Depends(get_current_active_user),
+) -> UserResponse:
+    """Update current user's profile."""
+    update_data = user_update.model_dump(exclude_none=True)
+    if not update_data:
+        return UserResponse(**current_user.model_dump())
+
+    if "username" in update_data:
+        # Check if username already exists for another user
+        existing = await get_user_by_username(db, update_data["username"])
+        if existing and str(existing.id) != str(current_user.id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already taken",
+            )
+
+    from datetime import datetime
+
+    update_data["updated_at"] = datetime.utcnow()
+
+    from bson import ObjectId
+
+    await db[USERS_COLLECTION].update_one(
+        {"_id": ObjectId(current_user.id)}, {"$set": update_data}
+    )
+
+    # Refresh user
+    from src.modules.auth.services import get_user_by_id
+
+    updated_user = await get_user_by_id(db, str(current_user.id))
+    return UserResponse(**updated_user.model_dump())
+
+
+@router.post("/me/profile-picture", response_model=UserResponse)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user: UserInDB = Depends(get_current_active_user),
+) -> UserResponse:
+    """Upload and process a new profile picture."""
+    # Validate file type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image",
+        )
+
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:  # 5MB limit
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image size must be less than 5MB",
+        )
+
+    from src.core.images import process_avatar
+
+    variants = await process_avatar(current_user.id, content)
+
+    # We store the medium variant as the primary avatar_url
+    avatar_url = variants["medium"]
+
+    from datetime import datetime
+
+    from bson import ObjectId
+
+    await db[USERS_COLLECTION].update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {"avatar_url": avatar_url, "updated_at": datetime.utcnow()}},
+    )
+
+    # Refresh user
+    from src.modules.auth.services import get_user_by_id
+
+    updated_user = await get_user_by_id(db, str(current_user.id))
+    return UserResponse(**updated_user.model_dump())
 
 
 @router.post("/forgot-password")

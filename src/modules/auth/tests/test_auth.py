@@ -256,6 +256,93 @@ class TestAuthMe:
         assert response.status_code == 401
 
 
+class TestAuthUpdateMe:
+    """Test updating current user profile."""
+
+    @pytest.mark.asyncio
+    async def test_update_me_success(
+        self, async_client: AsyncClient, test_user_data: dict
+    ):
+        """Test updating current user profile."""
+        # 1. Register, verify, and login to get token
+        await async_client.post("/auth/register", json=test_user_data)
+        await async_client.post(
+            "/auth/verify-email",
+            json={"email": test_user_data["email"], "otp": "123456"},
+        )
+        login_response = await async_client.post(
+            "/auth/login",
+            data={
+                "username": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
+        )
+        token = login_response.json()["access_token"]
+
+        # 2. Update username
+        new_username = "new_cool_name"
+        response = await async_client.patch(
+            "/auth/me",
+            json={"username": new_username},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["username"] == new_username
+
+        # 3. Verify it's actually in DB by calling /me
+        me_response = await async_client.get(
+            "/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert me_response.json()["username"] == new_username
+
+
+class TestAuthAvatarUpload:
+    """Test avatar upload."""
+
+    @pytest.mark.asyncio
+    async def test_avatar_upload_success(
+        self, async_client: AsyncClient, test_user_data: dict
+    ):
+        """Test successful avatar upload."""
+        # 1. Register, verify, and login
+        await async_client.post("/auth/register", json=test_user_data)
+        await async_client.post(
+            "/auth/verify-email",
+            json={"email": test_user_data["email"], "otp": "123456"},
+        )
+        login_response = await async_client.post(
+            "/auth/login",
+            data={
+                "username": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
+        )
+        token = login_response.json()["access_token"]
+
+        # 2. Upload avatar
+        import io
+
+        from PIL import Image
+
+        img = Image.new("RGB", (100, 100), color="blue")
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format="PNG")
+        files = {"file": ("avatar.png", img_byte_arr.getvalue(), "image/png")}
+
+        response = await async_client.post(
+            "/auth/me/profile-picture",
+            files=files,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "avatar_url" in data
+        assert "/static/uploads/avatars/" in data["avatar_url"]
+        assert "medium.webp" in data["avatar_url"]
+
+
 class TestAuthPasswordReset:
     """Test password reset flow."""
 
