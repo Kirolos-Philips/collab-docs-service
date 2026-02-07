@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordRequestForm
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from src.core.database import get_database
-from src.modules.auth.dependencies import get_current_active_user
-from src.modules.auth.models import UserInDB
-from src.modules.auth.schemas import (
+from core.database import get_database
+from modules.auth.dependencies import get_current_active_user
+from modules.auth.models import UserInDB
+from modules.auth.schemas import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
     Token,
@@ -16,8 +16,8 @@ from src.modules.auth.schemas import (
     UserUpdate,
     VerifyEmailRequest,
 )
-from src.modules.auth.security import create_access_token
-from src.modules.auth.services import (
+from modules.auth.security import create_access_token
+from modules.auth.services import (
     USERS_COLLECTION,
     authenticate_user,
     get_user_by_email,
@@ -132,7 +132,7 @@ async def update_me(
     )
 
     # Refresh user
-    from src.modules.auth.services import get_user_by_id
+    from modules.auth.services import get_user_by_id
 
     updated_user = await get_user_by_id(db, str(current_user.id))
     return UserResponse(**updated_user.model_dump())
@@ -159,7 +159,7 @@ async def upload_avatar(
             detail="Image size must be less than 5MB",
         )
 
-    from src.core.images import process_avatar
+    from core.images import process_avatar
 
     variants = await process_avatar(current_user.id, content)
 
@@ -176,7 +176,7 @@ async def upload_avatar(
     )
 
     # Refresh user
-    from src.modules.auth.services import get_user_by_id
+    from modules.auth.services import get_user_by_id
 
     updated_user = await get_user_by_id(db, str(current_user.id))
     return UserResponse(**updated_user.model_dump())

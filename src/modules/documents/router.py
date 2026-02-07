@@ -3,22 +3,22 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from src.core.database import get_database
-from src.modules.auth.dependencies import get_current_active_user
-from src.modules.auth.models import UserInDB
-from src.modules.documents.dependencies import (
+from core.database import get_database
+from modules.auth.dependencies import get_current_active_user
+from modules.auth.models import UserInDB
+from modules.documents.dependencies import (
     get_document_for_access,
     get_document_for_edit,
     get_document_for_owner,
 )
-from src.modules.documents.models import DocumentInDB
-from src.modules.documents.schemas import (
+from modules.documents.models import DocumentInDB
+from modules.documents.schemas import (
     CollaboratorUpdate,
     DocumentCreate,
     DocumentResponse,
     DocumentUpdate,
 )
-from src.modules.documents.services import (
+from modules.documents.services import (
     add_collaborator,
     create_document,
     delete_document,

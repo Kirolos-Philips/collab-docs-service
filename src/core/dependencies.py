@@ -10,7 +10,7 @@ from fastapi import Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis.asyncio import Redis
 
-from src.core.database import get_mongo_db, get_redis
+from core.database import get_mongo_db, get_redis
 
 
 async def get_db() -> AsyncIOMotorDatabase:

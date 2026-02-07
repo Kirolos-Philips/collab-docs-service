@@ -5,11 +5,11 @@ from datetime import datetime
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from src.modules.auth.models import UserInDB
-from src.modules.auth.services import get_user_by_email
-from src.modules.documents.crdt import CRDTDocumentManager
-from src.modules.documents.models import Collaborator, DocumentInDB
-from src.modules.documents.schemas import (
+from modules.auth.models import UserInDB
+from modules.auth.services import get_user_by_email
+from modules.documents.crdt import CRDTDocumentManager
+from modules.documents.models import Collaborator, DocumentInDB
+from modules.documents.schemas import (
     CollaboratorBase,
     DocumentCreate,
     DocumentUpdate,
@@ -163,7 +163,7 @@ async def enrich_collaborators(
     db: AsyncIOMotorDatabase, doc: DocumentInDB
 ) -> list[CollaboratorBase]:
     """Fetch user details for each collaborator in bulk to avoid N+1 proplem."""
-    from src.modules.auth.services import get_users_by_ids
+    from modules.auth.services import get_users_by_ids
 
     user_ids = [c.user_id for c in doc.collaborators]
     if not user_ids:

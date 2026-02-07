@@ -5,8 +5,8 @@ import json
 
 from redis.asyncio import Redis
 
-from src.core.config import settings
-from src.core.websockets import manager
+from core.config import settings
+from core.websockets import manager
 
 
 class RedisPubSubManager:

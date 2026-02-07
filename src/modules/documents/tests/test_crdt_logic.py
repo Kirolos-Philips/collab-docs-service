@@ -2,7 +2,7 @@
 
 import y_py as Y
 
-from src.modules.documents.crdt import CRDTDocumentManager
+from modules.documents.crdt import CRDTDocumentManager
 
 
 def test_crdt_initial_state():

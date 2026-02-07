@@ -7,10 +7,10 @@ import pytest
 import y_py as Y
 from httpx import AsyncClient
 
-from src.core.redis_pubsub import redis_sync_manager
-from src.core.websockets import manager
-from src.modules.documents.crdt import CRDTDocumentManager
-from src.modules.documents.services import get_document_by_id
+from core.redis_pubsub import redis_sync_manager
+from core.websockets import manager
+from modules.documents.crdt import CRDTDocumentManager
+from modules.documents.services import get_document_by_id
 
 
 @pytest.fixture
@@ -100,7 +100,7 @@ async def test_crdt_update_sync(
     assert ws1.sent_messages[0]["update"] == update_b64
 
     # 5. Verify persistence (Manual call to service since we are mocking WS)
-    from src.modules.documents.services import apply_crdt_update
+    from modules.documents.services import apply_crdt_update
 
     # Client adds "!!!"
     with y_manager.doc.begin_transaction() as tr:

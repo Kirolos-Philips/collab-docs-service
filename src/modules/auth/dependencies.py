@@ -4,10 +4,10 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from src.core.database import get_database
-from src.modules.auth.models import UserInDB
-from src.modules.auth.security import decode_access_token
-from src.modules.auth.services import get_user_by_id
+from core.database import get_database
+from modules.auth.models import UserInDB
+from modules.auth.security import decode_access_token
+from modules.auth.services import get_user_by_id
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 

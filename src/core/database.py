@@ -7,7 +7,7 @@ Provides async connection management with lifecycle hooks.
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from redis.asyncio import Redis
 
-from src.core.config import settings
+from core.config import settings
 
 # Global connection instances
 _mongo_client: AsyncIOMotorClient | None = None

@@ -5,7 +5,7 @@ from datetime import datetime
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from src.core.models import PyObjectId
+from core.models import PyObjectId
 
 
 class UserInDB(BaseModel):

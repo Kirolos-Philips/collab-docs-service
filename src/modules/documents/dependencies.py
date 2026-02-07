@@ -3,13 +3,13 @@
 from fastapi import Depends, HTTPException, WebSocket, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from src.core.database import get_database
-from src.modules.auth.dependencies import get_current_active_user
-from src.modules.auth.models import UserInDB
-from src.modules.auth.security import decode_access_token
-from src.modules.auth.services import get_user_by_id
-from src.modules.documents.models import DocumentInDB
-from src.modules.documents.services import get_document_by_id
+from core.database import get_database
+from modules.auth.dependencies import get_current_active_user
+from modules.auth.models import UserInDB
+from modules.auth.security import decode_access_token
+from modules.auth.services import get_user_by_id
+from modules.documents.models import DocumentInDB
+from modules.documents.services import get_document_by_id
 
 
 async def get_document_for_access(

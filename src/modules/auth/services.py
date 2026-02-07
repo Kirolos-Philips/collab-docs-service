@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from src.core.email import send_email
-from src.modules.auth.models import IdentityVerificationSession, OTPCode, UserInDB
-from src.modules.auth.schemas import UserCreate
-from src.modules.auth.security import hash_password, verify_password
+from core.email import send_email
+from modules.auth.models import IdentityVerificationSession, OTPCode, UserInDB
+from modules.auth.schemas import UserCreate
+from modules.auth.security import hash_password, verify_password
 
 USERS_COLLECTION = "users"
 OTPS_COLLECTION = "otps"

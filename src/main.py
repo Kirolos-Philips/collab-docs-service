@@ -10,8 +10,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from src.core.config import settings
-from src.core.database import close_db_connections, init_db_connections
+from core.config import settings
+from core.database import close_db_connections, init_db_connections
 
 
 @asynccontextmanager
@@ -21,14 +21,14 @@ async def lifespan(_app: FastAPI):
     await init_db_connections()
 
     # Initialize Redis sync for WebSockets
-    from src.core.redis_pubsub import redis_sync_manager
+    from core.redis_pubsub import redis_sync_manager
 
     await redis_sync_manager.connect()
     await redis_sync_manager.start_listening()
 
     yield
     # Shutdown
-    from src.core.redis_pubsub import redis_sync_manager
+    from core.redis_pubsub import redis_sync_manager
 
     await redis_sync_manager.stop()
     await close_db_connections()
@@ -82,9 +82,9 @@ def create_app() -> FastAPI:
     app.mount(settings.MEDIA_URL, StaticFiles(directory=str(media_path)), name="media")
 
     # Register module routers
-    from src.modules.auth.router import router as auth_router
-    from src.modules.documents.router import router as documents_router
-    from src.modules.documents.websocket_router import router as documents_ws_router
+    from modules.auth.router import router as auth_router
+    from modules.documents.router import router as documents_router
+    from modules.documents.websocket_router import router as documents_ws_router
 
     app.include_router(auth_router)
     app.include_router(documents_router)

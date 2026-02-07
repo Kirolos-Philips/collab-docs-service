@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from src.core.config import settings
+from core.config import settings
 
 # Configuration for avatar variants
 AVATAR_SIZES = {

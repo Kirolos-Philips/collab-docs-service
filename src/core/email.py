@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 
 import aiosmtplib
 
-from src.core.config import settings
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 

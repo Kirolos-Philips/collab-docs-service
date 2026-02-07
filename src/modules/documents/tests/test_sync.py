@@ -50,8 +50,8 @@ async def test_websocket_sync_connection(async_client: AsyncClient, auth_details
     # Given the environment, I'll implement a test that verifies the sync logic (broadcast/publish)
     import json
 
-    from src.core.redis_pubsub import redis_sync_manager
-    from src.core.websockets import manager
+    from core.redis_pubsub import redis_sync_manager
+    from core.websockets import manager
 
     # Manual check of the manager state (simulating connection)
     class MockWebSocket:

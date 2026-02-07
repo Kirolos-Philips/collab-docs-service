@@ -3,7 +3,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from src.main import app
+from main import app
 
 # We use the async_client fixture from tests/conftest.py
 

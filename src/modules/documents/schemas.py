@@ -2,9 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from src.core.models import PyObjectId
+from pydantic import BaseModel, ConfigDict
 
 
 class CollaboratorBase(BaseModel):
@@ -40,7 +38,7 @@ class DocumentUpdate(BaseModel):
 class DocumentResponse(DocumentBase):
     """Schema for document response."""
 
-    id: str = Field(alias="_id")
+    id: str
     owner_id: str
     collaborators: list[CollaboratorBase] = []
     created_at: datetime

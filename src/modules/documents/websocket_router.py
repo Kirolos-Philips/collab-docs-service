@@ -6,11 +6,11 @@ import contextlib
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from src.core.database import get_database
-from src.core.redis_pubsub import redis_sync_manager
-from src.core.websockets import manager
-from src.modules.documents.dependencies import get_ws_authenticated_doc
-from src.modules.documents.services import apply_crdt_update, process_sync_message
+from core.database import get_database
+from core.redis_pubsub import redis_sync_manager
+from core.websockets import manager
+from modules.documents.dependencies import get_ws_authenticated_doc
+from modules.documents.services import apply_crdt_update, process_sync_message
 
 router = APIRouter(prefix="/documents", tags=["documents_sync"])
 

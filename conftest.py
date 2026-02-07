@@ -13,9 +13,9 @@ from httpx import ASGITransport, AsyncClient
 from motor.motor_asyncio import AsyncIOMotorClient
 from redis.asyncio import Redis
 
-from src.core.config import settings
-from src.core.database import close_db_connections, get_database, init_db_connections
-from src.main import app
+from core.config import settings
+from core.database import close_db_connections, get_database, init_db_connections
+from main import app
 
 
 @pytest.fixture(autouse=True)
