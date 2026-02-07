@@ -24,7 +24,6 @@ WORKDIR /app
 # Copy dependency files first (for layer caching)
 COPY pyproject.toml uv.lock ./
 
-# [التحسين الخرافي]: استخدام الـ Cache Mount لسرعة بناء لا تقارن
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --extra dev
 

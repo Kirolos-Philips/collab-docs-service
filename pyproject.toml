@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "Your Name", email = "you@example.com" }]
 
-# Base dependencies
+
 dependencies = [
     "fastapi>=0.111.0",
     "uvicorn[standard]>=0.30.0",
@@ -32,6 +32,9 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
     "httpx>=0.26.0",
+    "debugpy>=1.8.0",
+    "ruff>=0.3.0",
+    "pre-commit>=3.6.0",
     "anyio>=4.3.0",
 ]
 
@@ -39,15 +42,33 @@ dev = [
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-testpaths = ["src"]
-python_files = "test_*.py"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.ruff]
-line-length = 88
 target-version = "py312"
+line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM"]
-ignore = ["B008"]
+
+select = ["E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "N"]
+ignore = ["E501", "B008"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v --tb=short"
+
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
