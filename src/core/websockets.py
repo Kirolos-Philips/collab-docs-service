@@ -39,6 +39,21 @@ class ConnectionManager:
                     # Connection might be closed already
                     self.disconnect(document_id, connection)
 
+    async def broadcast_except(
+        self, document_id: str, message: dict, exclude: WebSocket
+    ):
+        """Send message to all websockets EXCEPT the sender."""
+        if document_id in self.active_connections:
+            connections = list(self.active_connections[document_id])
+            message_json = json.dumps(message)
+            for connection in connections:
+                if connection is exclude:
+                    continue
+                try:
+                    await connection.send_text(message_json)
+                except Exception:
+                    self.disconnect(document_id, connection)
+
 
 # Global instance
 manager = ConnectionManager()
