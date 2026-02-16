@@ -75,6 +75,19 @@ async def sync_document(
                 # Publish to Redis for other replicas
                 await redis_sync_manager.publish(document_id, processed_data)
 
+            elif msg_type == "awareness":
+                # Handle Yjs Awareness updates (cursor positions, selections, user info)
+                # Broadcast directly to other local clients (skip Redis — ephemeral data)
+                awareness_update = message.get("update")
+                if awareness_update:
+                    conns = manager.active_connections.get(document_id, set())
+                    print(
+                        f"[Awareness] Received from {user.username}, broadcasting to {len(conns) - 1} other(s)"
+                    )
+                    await manager.broadcast_except(
+                        document_id, message, exclude=websocket
+                    )
+
             elif msg_type == "presence":
                 # Handle presence logic (Position, status, etc.)
                 message["user_id"] = str(user.id)
